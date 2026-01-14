@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>TOEIC Trainer – GEII</title>
+
+<style>
+body{
+  font-family: Arial, sans-serif;
+  background:#f6f5fb;
+  margin:0;
+  padding:20px;
+}
+header{
+  background:#6a0dad;
+  color:white;
+  padding:20px;
+  text-align:center;
+  border-radius:20px;
+}
+nav{
+  margin:20px 0;
+  display:flex;
+  gap:10px;
+  justify-content:center;
+  flex-wrap:wrap;
+}
+nav button{
+  background:#ffd700;
+  border:none;
+  padding:10px 15px;
+  border-radius:25px;
+  font-weight:bold;
+  cursor:pointer;
+}
+section{
+  display:none;
+  background:white;
+  padding:20px;
+  border-radius:20px;
+}
+section.active{display:block;}
+
+button.action{
+  background:#6a0dad;
+  color:white;
+  border:none;
+  padding:10px;
+  border-radius:20px;
+  margin-top:10px;
+  cursor:pointer;
+  width:100%;
+}
+
+.toeic-submenu{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-bottom:15px;
+}
+.toeic-submenu button{
+  background:#6a0dad;
+  color:white;
+  border-radius:20px;
+  padding:8px 12px;
+}
+
+.flashcard{
+  width:300px;
+  height:120px;
+  background:#f6f5fb;
+  border:2px solid #6a0dad;
+  border-radius:20px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:22px;
+  cursor:pointer;
+}
+
+#cardContainer{
+  display:flex;
+  justify-content:center;
+  margin:20px 0;
+}
+#wordList li{
+  cursor:pointer;
+  color:#6a0dad;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+<h1>TOEIC Trainer – GEII</h1>
+</header>
+
+<nav>
+<button onclick="show('menu')">Menu</button>
+<button onclick="show('toeic')">TOEIC</button>
+<button onclick="show('flashcards')">Flashcards</button>
+<button onclick="show('stats')">Statistiques</button>
+</nav>
+
+<section id="menu" class="active">
+<textarea id="offer" placeholder="Offre d'emploi (optionnelle)"></textarea>
+<button class="action" onclick="startTraining()">Commencer</button>
+</section>
+
+<section id="toeic">
+<h2>TOEIC</h2>
+
+<div class="toeic-submenu">
+<button onclick="selectTheme('tenses')">Temps verbaux</button>
+<button onclick="selectTheme('agreement')">Concordance</button>
+<button onclick="selectTheme('passive')">Voix passive</button>
+<button onclick="selectTheme('prepositions')">Prépositions</button>
+<button onclick="selectTheme('articles')">Articles</button>
+<button onclick="selectTheme('modals')">Modals</button>
+<button onclick="selectTheme('adverbs')">Adverbes</button>
+<button onclick="selectTheme('adjectives')">Adjectifs</button>
+</div>
+
+<p id="question"></p>
+<div id="choices"></div>
+<p id="feedback"></p>
+</section>
+
+<section id="flashcards">
+<h2>Flashcards</h2>
+<div id="cardContainer"></div>
+<button class="action" onclick="nextCard()">Carte suivante</button>
+<ul id="wordList"></ul>
+<input id="fr" placeholder="Mot français">
+<input id="en" placeholder="Traduction anglaise">
+<button class="action" onclick="addFlashcard()">Ajouter</button>
+</section>
+
+<section id="stats">
+<h2>Progression</h2>
+<div id="statsContent"></div>
+</section>
+
+<script>
+/* ================= NAVIGATION ================= */
+function show(id){
+  document.querySelectorAll("section").forEach(s=>s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+}
+
+/* ================= FLASHCARDS ================= */
+let flashcards = JSON.parse(localStorage.getItem("flashcards")) || [
+  {fr:"circuit",en:"circuit"},
+  {fr:"capteur",en:"sensor"},
+  {fr:"automate",en:"PLC"}
+];
+
+let index=0, flipped=false;
+
+function showCard(){
+  cardContainer.innerHTML="";
+  let c=document.createElement("div");
+  c.className="flashcard";
+  c.textContent=flashcards[index].fr;
+  c.onclick=()=>{
+    c.textContent=flipped?flashcards[index].fr:flashcards[index].en;
+    flipped=!flipped;
+  };
+  cardContainer.appendChild(c);
+  renderList();
+}
+function nextCard(){
+  index=(index+1)%flashcards.length;
+  flipped=false;
+  showCard();
+}
+function addFlashcard(){
+  flashcards.push({fr:fr.value,en:en.value});
+  localStorage.setItem("flashcards",JSON.stringify(flashcards));
+  fr.value=en.value="";
+  showCard();
+}
+function renderList(){
+  wordList.innerHTML="";
+  flashcards.forEach((f,i)=>{
+    let li=document.createElement("li");
+    li.textContent=f.fr;
+    li.onclick=()=>{index=i;showCard();};
+    wordList.appendChild(li);
+  });
+}
+showCard();
+
+/* ================= TOEIC ================= */
+let stats=JSON.parse(localStorage.getItem("stats"))||{};
+let currentTheme=null, qIndex=0;
+
+/* ⬇️⬇️⬇️ TOUTES LES PHRASES TOEIC SONT ICI ⬇️⬇️⬇️ */
+const structures = {
+
+  tenses: [
+  {sentence:"By the time the test begins, the system ___ fully configured.", choices:["is","will be","will have been","has"], answer:2},
+  {sentence:"The technician usually ___ the equipment before starting work.", choices:["checks","checked","will check","has checked"], answer:0},
+  {sentence:"The engineer ___ the issue during yesterday’s inspection.", choices:["identifies","identified","will identify","has identify"], answer:1},
+  {sentence:"The software ___ more stable since the last update.", choices:["becomes","became","has become","will become"], answer:2},
+  {sentence:"Next month, the company ___ new automation tools.", choices:["installs","installed","will install","has installed"], answer:2},
+
+  {sentence:"The PLC ___ correctly when the alarm sounded.", choices:["runs","ran","is running","has run"], answer:1},
+  {sentence:"The operator ___ the procedure every morning.", choices:["follows","followed","will follow","has followed"], answer:0},
+  {sentence:"The system ___ several errors last night.", choices:["detects","detected","has detected","will detect"], answer:1},
+  {sentence:"The engineer ___ the report before the meeting.", choices:["finishes","finished","will finish","has finish"], answer:1},
+  {sentence:"The machine ___ unexpectedly during the test.", choices:["stops","stopped","will stop","has stop"], answer:1},
+
+  {sentence:"The company ___ production costs over the past year.", choices:["reduces","reduced","has reduced","will reduce"], answer:2},
+  {sentence:"The technician ___ the wiring tomorrow.", choices:["checks","checked","will check","has checked"], answer:2},
+  {sentence:"The software ___ automatically every night.", choices:["updates","updated","will update","has updated"], answer:0},
+  {sentence:"The engineer ___ the system two weeks ago.", choices:["tests","tested","has tested","will test"], answer:1},
+  {sentence:"The machine ___ more efficiently after maintenance.", choices:["operates","operated","will operate","has operate"], answer:0},
+
+  {sentence:"The technician ___ the voltage when the fault occurred.", choices:["measures","measured","has measured","will measure"], answer:1},
+  {sentence:"The company ___ new suppliers last year.", choices:["selects","selected","has selected","will select"], answer:1},
+  {sentence:"The PLC ___ correctly since it was repaired.", choices:["runs","ran","has run","will run"], answer:2},
+  {sentence:"The engineer ___ a solution during the meeting.", choices:["proposes","proposed","has proposed","will propose"], answer:1},
+  {sentence:"The system ___ unstable before the update.", choices:["is","was","has been","will be"], answer:1}
+],
+
+ agreement: [
+  {sentence:"The control system ___ responsible for managing all sensors.", choices:["are","is","were","have"], answer:1},
+  {sentence:"Each technician ___ required to follow safety procedures.", choices:["are","were","is","have"], answer:2},
+  {sentence:"The list of components ___ attached to the report.", choices:["are","were","is","have"], answer:2},
+  {sentence:"Several machines ___ operating simultaneously.", choices:["is","was","are","has"], answer:2},
+  {sentence:"The engineer in charge of the project ___ experienced.", choices:["are","were","is","have"], answer:2},
+
+  {sentence:"A number of errors ___ detected during testing.", choices:["is","was","are","has"], answer:2},
+  {sentence:"The quality of the signals ___ affected by interference.", choices:["are","were","is","have"], answer:2},
+  {sentence:"Each of the sensors ___ calibrated regularly.", choices:["are","were","is","have"], answer:2},
+  {sentence:"The set of instructions ___ clearly written.", choices:["are","were","is","have"], answer:2},
+  {sentence:"All safety devices ___ functioning properly.", choices:["is","was","are","has"], answer:2},
+
+  {sentence:"The technician who manages the system ___ on site today.", choices:["are","were","is","have"], answer:2},
+  {sentence:"One of the machines ___ showing abnormal behavior.", choices:["are","were","is","have"], answer:2},
+  {sentence:"The data collected from the sensors ___ accurate.", choices:["is","was","are","has"], answer:2},
+  {sentence:"The number of failures ___ decreased significantly.", choices:["are","were","is","have"], answer:2},
+  {sentence:"Each employee ___ access to the control software.", choices:["are","were","is","have"], answer:2},
+
+  {sentence:"The maintenance team ___ responsible for inspections.", choices:["is","was","are","has"], answer:2},
+  {sentence:"Neither the technician nor the engineer ___ available.", choices:["are","were","is","have"], answer:2},
+  {sentence:"The instructions provided by the manufacturer ___ clear.", choices:["is","was","are","has"], answer:2},
+  {sentence:"Every system ___ tested before delivery.", choices:["are","were","is","have"], answer:2},
+  {sentence:"The results of the experiment ___ documented.", choices:["is","was","are","has"], answer:2}
+],
+
+  passive: [
+  {sentence:"The system must be ___ before it is put into operation.", choices:["tested","testing","test","tests"], answer:0},
+  {sentence:"All safety instructions should be ___ carefully.", choices:["followed","following","follows","follow"], answer:0},
+  {sentence:"The equipment was ___ during the inspection.", choices:["damaged","damaging","damage","damages"], answer:0},
+  {sentence:"The report will be ___ to the manager by email.", choices:["sent","send","sending","sends"], answer:0},
+  {sentence:"The machine is ___ remotely by the control center.", choices:["monitored","monitor","monitoring","monitors"], answer:0},
+
+  {sentence:"The software update has been ___ successfully.", choices:["completed","completing","complete","completes"], answer:0},
+  {sentence:"All documents must be ___ before the deadline.", choices:["submitted","submitting","submit","submits"], answer:0},
+  {sentence:"The system was ___ due to a power failure.", choices:["shut down","shutting down","shuts down","shut"], answer:0},
+  {sentence:"The cables should be ___ properly to avoid damage.", choices:["connected","connecting","connect","connects"], answer:0},
+  {sentence:"The problem was ___ by the engineering team.", choices:["identified","identifying","identify","identifies"], answer:0},
+
+  {sentence:"The new procedure will be ___ next month.", choices:["implemented","implementing","implement","implements"], answer:0},
+  {sentence:"The equipment has been ___ according to safety standards.", choices:["inspected","inspecting","inspect","inspects"], answer:0},
+  {sentence:"The results were ___ during the meeting.", choices:["presented","presenting","present","presents"], answer:0},
+  {sentence:"The system is being ___ to improve performance.", choices:["upgraded","upgrade","upgrading","upgrades"], answer:0},
+  {sentence:"The alarm was ___ accidentally.", choices:["triggered","triggering","trigger","triggers"], answer:0},
+
+  {sentence:"The machine must be ___ before maintenance.", choices:["turned off","turning off","turns off","turn off"], answer:0},
+  {sentence:"The network was ___ by external specialists.", choices:["installed","installing","install","installs"], answer:0},
+  {sentence:"All errors have been ___ in the latest version.", choices:["corrected","correcting","correct","corrects"], answer:0},
+  {sentence:"The device will be ___ at the factory.", choices:["assembled","assembling","assemble","assembles"], answer:0},
+  {sentence:"The software is ___ regularly for security reasons.", choices:["updated","updating","update","updates"], answer:0}
+],
+
+ prepositions: [
+  {sentence:"The system must be tested ___ installation.", choices:["before","within","during","by"], answer:0},
+  {sentence:"The technician is responsible ___ maintaining the equipment.", choices:["of","for","to","with"], answer:1},
+  {sentence:"The report was submitted ___ the manager.", choices:["to","for","with","by"], answer:0},
+  {sentence:"The update was completed ___ two hours.", choices:["within","during","until","by"], answer:0},
+  {sentence:"The alarm went off ___ the night.", choices:["at","in","on","by"], answer:0},
+
+  {sentence:"The machine operates ___ high temperatures.", choices:["at","in","on","by"], answer:0},
+  {sentence:"The software is compatible ___ this system.", choices:["to","with","for","by"], answer:1},
+  {sentence:"The engineer arrived ___ the site early.", choices:["in","on","at","by"], answer:2},
+  {sentence:"The sensor failed ___ excessive heat.", choices:["because","due to","within","by"], answer:1},
+  {sentence:"The data is stored ___ the server.", choices:["in","on","at","to"], answer:0},
+
+  {sentence:"The meeting will take place ___ Monday.", choices:["on","in","at","by"], answer:0},
+  {sentence:"The technician worked ___ the project all week.", choices:["on","in","at","by"], answer:0},
+  {sentence:"The issue was resolved ___ cooperation.", choices:["by","with","through","within"], answer:2},
+  {sentence:"The company operates ___ several countries.", choices:["in","on","at","by"], answer:0},
+  {sentence:"The warning appeared ___ the screen.", choices:["on","in","at","by"], answer:0},
+
+  {sentence:"The system shut down ___ safety reasons.", choices:["for","by","with","within"], answer:0},
+  {sentence:"The report was written ___ detail.", choices:["in","with","by","for"], answer:0},
+  {sentence:"The engineer explained the issue ___ clarity.", choices:["with","by","for","in"], answer:0},
+  {sentence:"The test was conducted ___ strict conditions.", choices:["under","within","by","for"], answer:0},
+  {sentence:"The technician is familiar ___ this software.", choices:["with","to","for","by"], answer:0}
+],
+
+  articles: [
+  {sentence:"The technician installed ___ new control system.", choices:["a","an","the","Ø"], answer:0},
+  {sentence:"The company is looking for ___ experienced engineer.", choices:["a","an","the","Ø"], answer:1},
+  {sentence:"Please refer to ___ technical manual before starting.", choices:["a","an","the","Ø"], answer:2},
+  {sentence:"The software update caused ___ unexpected error.", choices:["a","an","the","Ø"], answer:1},
+  {sentence:"She is responsible for managing ___ production line.", choices:["a","an","the","Ø"], answer:2},
+
+  {sentence:"The company invested in ___ new automation equipment.", choices:["a","an","the","Ø"], answer:3},
+  {sentence:"The technician replaced ___ faulty component.", choices:["a","an","the","Ø"], answer:0},
+  {sentence:"The system requires ___ additional configuration.", choices:["a","an","the","Ø"], answer:3},
+  {sentence:"The engineer prepared ___ detailed report.", choices:["a","an","the","Ø"], answer:0},
+  {sentence:"The issue was reported to ___ IT department.", choices:["a","an","the","Ø"], answer:2},
+
+  {sentence:"They installed ___ advanced monitoring system.", choices:["a","an","the","Ø"], answer:1},
+  {sentence:"The machine is controlled by ___ PLC.", choices:["a","an","the","Ø"], answer:0},
+  {sentence:"The company aims to reduce ___ energy consumption.", choices:["a","an","the","Ø"], answer:3},
+  {sentence:"The technician followed ___ safety procedures.", choices:["a","an","the","Ø"], answer:2},
+  {sentence:"She attended ___ training session last week.", choices:["a","an","the","Ø"], answer:0},
+
+  {sentence:"The system detected ___ abnormal behavior.", choices:["a","an","the","Ø"], answer:1},
+  {sentence:"They are developing ___ new software application.", choices:["a","an","the","Ø"], answer:0},
+  {sentence:"The engineer has ___ important role in the project.", choices:["a","an","the","Ø"], answer:0},
+  {sentence:"The equipment was delivered in ___ damaged condition.", choices:["a","an","the","Ø"], answer:3},
+  {sentence:"The company complies with ___ international standards.", choices:["a","an","the","Ø"], answer:3}
+],
+
+  modals: [
+  {sentence:"The technician ___ check the circuit before starting.", choices:["must","can","should","may"], answer:0},
+  {sentence:"The system ___ be restarted after a firmware update.", choices:["should","must","may","can"], answer:0},
+  {sentence:"The engineer ___ review the report before submission.", choices:["must","may","can","might"], answer:0},
+  {sentence:"The operator ___ follow safety protocols at all times.", choices:["must","can","should","might"], answer:0},
+  {sentence:"The software ___ be installed only by authorized personnel.", choices:["must","may","can","should"], answer:0},
+  {sentence:"The alarm ___ sound if the temperature exceeds limits.", choices:["will","can","may","should"], answer:0},
+  {sentence:"The technician ___ request additional tools if needed.", choices:["can","must","should","might"], answer:0},
+  {sentence:"The PLC ___ be programmed according to the instructions.", choices:["must","can","may","might"], answer:0},
+  {sentence:"The system ___ not be operated without supervision.", choices:["must","may","can","should"], answer:0},
+  {sentence:"The operator ___ notify the engineer in case of error.", choices:["should","must","may","can"], answer:0},
+  {sentence:"The firmware ___ be updated to improve performance.", choices:["should","must","can","may"], answer:0},
+  {sentence:"The sensors ___ detect abnormal temperature changes.", choices:["can","must","may","should"], answer:0},
+  {sentence:"The engineer ___ verify the data before sending the report.", choices:["must","may","can","should"], answer:0},
+  {sentence:"The system ___ shut down automatically during maintenance.", choices:["will","can","must","may"], answer:0},
+  {sentence:"The technician ___ use protective gloves in the lab.", choices:["must","may","can","should"], answer:0},
+  {sentence:"The PLC ___ handle multiple inputs simultaneously.", choices:["can","must","may","should"], answer:0},
+  {sentence:"The operator ___ log all changes in the system.", choices:["must","may","can","should"], answer:0},
+  {sentence:"The firmware ___ be rolled back if errors occur.", choices:["may","must","can","should"], answer:0},
+  {sentence:"The system ___ alert the operator in case of malfunction.", choices:["will","must","can","may"], answer:0},
+  {sentence:"The technician ___ perform tests before calibration.", choices:["must","can","may","should"], answer:0}
+],
+
+ adverbs: [
+  {sentence:"The technician completed the test ___ to avoid errors.", choices:["carefully","careful","carefulness","care"], answer:0},
+  {sentence:"The system responded ___ during the simulation.", choices:["quickly","quick","quickness","quicker"], answer:0},
+  {sentence:"The operator always checks the settings ___ before starting.", choices:["thoroughly","thorough","thoroughness","more thoroughly"], answer:0},
+  {sentence:"The software update runs ___ without crashing.", choices:["smoothly","smooth","smoothness","smoother"], answer:0},
+  {sentence:"The engineer worked ___ to fix the fault before the deadline.", choices:["diligently","diligent","diligence","more diligently"], answer:0},
+  {sentence:"The sensor reacted ___ to sudden changes in temperature.", choices:["rapidly","rapid","rapidity","more rapidly"], answer:0},
+  {sentence:"The PLC is monitored ___ to ensure proper operation.", choices:["constantly","constant","constancy","more constantly"], answer:0},
+  {sentence:"The system logs errors ___ for review by the engineer.", choices:["automatically","automatic","automaticity","more automatically"], answer:0},
+  {sentence:"The operator adjusted the voltage ___ after noticing fluctuations.", choices:["carefully","careful","carefulness","more carefully"], answer:0},
+  {sentence:"The software runs ___ even under high loads.", choices:["efficiently","efficient","efficiency","more efficiently"], answer:0},
+  {sentence:"The alarm triggered ___ when the temperature exceeded limits.", choices:["immediately","immediate","immediacy","more immediately"], answer:0},
+  {sentence:"The engineer tested the circuits ___ to detect all errors.", choices:["thoroughly","thorough","thoroughness","more thoroughly"], answer:0},
+  {sentence:"The maintenance is scheduled ___ to prevent breakdowns.", choices:["regularly","regular","regularity","more regularly"], answer:0},
+  {sentence:"The data is processed ___ before generating the report.", choices:["accurately","accurate","accuracy","more accurately"], answer:0},
+  {sentence:"The PLC communicates ___ with the central server.", choices:["reliably","reliable","reliability","more reliably"], answer:0},
+  {sentence:"The operator responded ___ to the emergency situation.", choices:["promptly","prompt","promptness","more promptly"], answer:0},
+  {sentence:"The signals were transmitted ___ without interference.", choices:["clearly","clear","clarity","more clearly"], answer:0},
+  {sentence:"The software interface loads ___ even on older systems.", choices:["smoothly","smooth","smoothness","more smoothly"], answer:0},
+  {sentence:"The technician inspected the panels ___ after the shutdown.", choices:["carefully","careful","carefulness","more carefully"], answer:0},
+  {sentence:"The system updates ___ every night to maintain performance.", choices:["automatically","automatic","automaticity","more automatically"], answer:0}
+],
+
+ adjectives: [
+  {sentence:"The engineer verified the ___ circuit before installation.", choices:["critical","critically","criticalness","critics"], answer:0},
+  {sentence:"The PLC requires ___ parameters for proper functioning.", choices:["precise","precisely","precision","preciser"], answer:0},
+  {sentence:"The system displayed a ___ error on the screen.", choices:["minor","minimally","minorness","minorly"], answer:0},
+  {sentence:"The operator needs a ___ manual to understand the setup.", choices:["comprehensive","comprehensively","comprehension","comprehender"], answer:0},
+  {sentence:"The technician used a ___ tool for the calibration.", choices:["specialized","specialize","specialization","specialist"], answer:0},
+  {sentence:"The software requires a ___ update to fix bugs.", choices:["critical","critically","criticalness","critics"], answer:0},
+  {sentence:"The system needs ___ maintenance to avoid breakdowns.", choices:["regular","regularly","regularity","regulate"], answer:0},
+  {sentence:"The engineer followed a ___ procedure for safety.", choices:["strict","strictly","strictness","stricter"], answer:0},
+  {sentence:"The operator inspected the ___ panels before powering on.", choices:["damaged","damage","damaging","damages"], answer:0},
+  {sentence:"The PLC requires ___ voltage for optimal performance.", choices:["stable","stably","stability","stabler"], answer:0},
+  {sentence:"The system shows ___ behavior under high load.", choices:["erratic","erratically","erraticness","more erratically"], answer:0},
+  {sentence:"The engineer designed a ___ interface for the users.", choices:["user-friendly","user-friendliness","users","friendly"], answer:0},
+  {sentence:"The software contains ___ functions for analysis.", choices:["advanced","advancement","advancing","advancer"], answer:0},
+  {sentence:"The operator must wear ___ gloves during assembly.", choices:["protective","protect","protection","protectively"], answer:0},
+  {sentence:"The sensor is ___ and must be handled carefully.", choices:["sensitive","sensitively","sensitivity","sensitiveness"], answer:0},
+  {sentence:"The system detected ___ fluctuations in voltage.", choices:["significant","significantly","significance","signify"], answer:0},
+  {sentence:"The technician used a ___ device to measure resistance.", choices:["precise","precisely","precision","preciser"], answer:0},
+  {sentence:"The engineer implemented a ___ algorithm for efficiency.", choices:["complex","complexity","complexly","more complex"], answer:0},
+  {sentence:"The software displays a ___ message in case of error.", choices:["clear","clearly","clarity","cleared"], answer:0},
+  {sentence:"The PLC operates in a ___ environment.", choices:["controlled","control","controlling","controller"], answer:0}
+]
+
+};
+
+function selectTheme(t){
+  currentTheme=t;
+  qIndex=0;
+  loadQuestion();
+}
+
+function loadQuestion(){
+  let q=structures[currentTheme][qIndex % structures[currentTheme].length];
+  question.textContent=q.sentence;
+  choices.innerHTML="";
+  q.choices.forEach((c,i)=>{
+    let b=document.createElement("button");
+    b.className="action";
+    b.textContent=c;
+    b.onclick=()=>check(i);
+    choices.appendChild(b);
+  });
+}
+
+function check(i){
+  let q=structures[currentTheme][qIndex % structures[currentTheme].length];
+  stats[currentTheme]=stats[currentTheme]||{ok:0,total:0};
+  stats[currentTheme].total++;
+  if(i===q.answer){
+    stats[currentTheme].ok++;
+    feedback.textContent="Correct !";
+  } else {
+    feedback.textContent="Erreur, bonne réponse : "+q.choices[q.answer];
+  }
+  localStorage.setItem("stats",JSON.stringify(stats));
+  qIndex++;
+  setTimeout(loadQuestion,800);
+}
+
+function startTraining(){
+  show("toeic");
+  selectTheme("tenses");
+}
+
+/* ================= STATS ================= */
+document.querySelector("button[onclick=\"show('stats')\"]").onclick=()=>{
+  statsContent.innerHTML="";
+  for(let t in stats){
+    statsContent.innerHTML+=`<p>${t} : ${Math.round(stats[t].ok/stats[t].total*100)}%</p>`;
+  }
+};
+</script>
+
+</body>
+</html>
